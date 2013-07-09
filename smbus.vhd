@@ -38,16 +38,18 @@ entity smbus is
 			  clk_p : in  STD_LOGIC;
            clk_n : in  STD_LOGIC;
            scl : out  STD_LOGIC;
-           sda : inout  STD_LOGIC);
+           sda : inout  STD_LOGIC;
+			  outclk_p : out STD_LOGIC
+			  );
 end smbus;
 
 architecture Behavioral of smbus is
 
 signal clk: std_logic;
 signal slowclk_enable : std_logic;
-signal clk_counter : integer range 0 to 50000;
-signal scl_counter : integer range 0 to 50000;
-constant CLKSLOWCLK_RATIO : integer := 5;
+signal clk_counter : integer range 0 to 50000 := 0;
+signal scl_counter : integer range 0 to 50000 := 0;
+constant CLKSLOWCLK_RATIO : integer := 500;
 --if we want slowclk at 400khz (allow us to do things 4x in cycle), ratio should be 500
 
 type state_type is (state_idle, state_start, state_stop, state_send_slave_address);
@@ -63,7 +65,7 @@ begin
 
 	IBUFDS_inst : IBUFDS
 	generic map (
-		DIFF_TERM => FALSE,
+		DIFF_TERM => TRUE,
 		IBUF_LOW_PWR => TRUE,
 		IOSTANDARD => "DEFAULT")
 	port map (
@@ -71,14 +73,15 @@ begin
 		I => clk_p,
 		IB => clk_n
 	);
-		
+			
 	slowclk_generation: process(rst, clk)
 	begin
 		if rst = '1' then
 			clk_counter <= 0;
 			slowclk_enable <= '0';
 		elsif rising_edge(clk) then
-			if clk_counter = (CLKSLOWCLK_RATIO-1) then
+			if clk_counter >= (CLKSLOWCLK_RATIO-1) then
+				outclk_p <= '1';
 				slowclk_enable <= '1';
 				clk_counter <= 0;
 			else
@@ -103,7 +106,7 @@ begin
 					
 				if scl_counter < 3 then
 					scl_counter <= scl_counter+ 1;
-				elsif scl_counter = 3 then
+				elsif scl_counter >= 3 then
 					scl_counter <= 0;
 				end if;
 			end if;
@@ -124,7 +127,7 @@ begin
 				if state_current = state_idle then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= '1';
-						if idle_counter = 10  then
+						if idle_counter >= 3  then
 							state_current <= state_next;
 						else
 							idle_counter <= idle_counter + 1;
@@ -141,7 +144,7 @@ begin
 						sda <= slaveaddress_bits(slaveaddress_counter);
 						if slaveaddress_counter = 0 then
 							state_current <= state_idle;
-							state_next <= state_idle;
+							state_next <= state_start;
 						else 
 							slaveaddress_counter <= slaveaddress_counter - 1;
 						end if;
@@ -153,4 +156,3 @@ begin
 
 
 end Behavioral;
-
