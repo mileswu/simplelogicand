@@ -63,7 +63,7 @@ constant CLKSLOWCLK_RATIO : integer := 500;
 --if we want slowclk at 400khz (allow us to do things 4x in cycle), ratio should be 500
 
 type state_type is (state_idle, state_start, state_stop, state_send_slave_address,
-   state_send_rw_read, state_receive_ack, state_recieve_byte, state_deadend);
+   state_send_rw_read, state_send_rw_write, state_receive_ack, state_recieve_byte, state_send_byte, state_send_nack);
 signal state_current : state_type;
 signal state_next : state_type;
 
@@ -73,11 +73,16 @@ signal slaveaddress_counter : integer range 0 to 10;
 signal slaveaddress_bits : std_logic_vector(6 downto 0);
 
 signal receive_ack_counter : integer range 0 to 10;
---signal sda_read : std_logic;
+
+signal write_bits : std_logic_vector(7 downto 0);
+signal write_counter : integer range 0 to 10;
+signal write_finished : std_logic;
 
 signal read_bits : std_logic_vector(7 downto 0);
 signal read_counter : integer range 0 to 10;
 signal read_finished : std_logic;
+
+signal stop_counter : integer range 0 to 10;
 
 signal readout_finished : std_logic;
 signal readout_led_counter : integer range 0 to 1000000 := 0;
@@ -159,39 +164,75 @@ begin
 			led4 <= '0';
 			slaveaddress_bits <= "1110100";
 			read_finished <= '0';
+			write_bits <= "10010101";
+			write_finished <= '0';
+			receive_ack_counter <= 0;
+			stop_counter <= 0;
 		elsif falling_edge(clk) then
 			if clk_sda_enable = '1' then
+			
 				if state_current = state_idle then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= '1';
 						if idle_counter >= 100 then
+							idle_counter <= 0;
 							led4 <= '1';
 							state_current <= state_next;
 						else
 							idle_counter <= idle_counter + 1;
 						end if;
 					end if;
+					
 				elsif state_current = state_start then
 					if	scl_counter = 1 then -- middle of high scl
 						sda <= '0';
 						state_current <= state_send_slave_address;
 						slaveaddress_counter <= 6; -- start at msb
 					end if;
+					
+				elsif state_current = state_stop then
+					if	scl_counter = 3 then
+						stop_counter <= 1;
+						sda <= '0';
+					elsif scl_counter = 1 and stop_counter = 1 then
+						sda <= '1';
+						state_current <= state_idle;
+						stop_counter <= 0;
+						if read_finished = '0' then
+							state_next <= state_start;
+						else
+							state_next <= state_idle;
+						end if;
+					end if;
+					
 				elsif state_current = state_send_slave_address then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= slaveaddress_bits(slaveaddress_counter);
 						if slaveaddress_counter = 0 then
-							state_current <= state_send_rw_read;
+							if write_finished = '0' then
+								state_current <= state_send_rw_write;
+							else
+								state_current <= state_send_rw_read;
+							end if;
 						else 
 							slaveaddress_counter <= slaveaddress_counter - 1;
 						end if;
 					end if;
+					
 				elsif state_current = state_send_rw_read then
 					if scl_counter = 3 then
 						sda <= '1';
 						state_current <= state_receive_ack;
-						receive_ack_counter <= 0;
+						state_next <= state_recieve_byte;
 					end if;
+					
+				elsif state_current = state_send_rw_write then
+					if scl_counter = 3 then
+						sda <= '0';
+						state_current <= state_receive_ack;
+						state_next <= state_send_byte;
+					end if;
+					
 				elsif state_current = state_receive_ack then
 				   
 					if scl_counter = 3 then
@@ -203,23 +244,44 @@ begin
 						else
 							led1 <= '1';
 						end if;
-						--state_current <= state_idle;
-						--state_next <= state_idle;
-						state_current <= state_recieve_byte;
+						state_current <= state_next;
 						read_counter <= 7;
+						write_counter <= 7;
+						receive_ack_counter <= 0;
 					end if;
+					
 				elsif state_current = state_recieve_byte then
 					if scl_counter = 1 then
 						led2 <= '1';
 						read_bits(read_counter) <= sda;
 						if read_counter = 0 then
-							state_current <= state_idle;	
-							state_next <= state_idle;
+							state_current <= state_send_nack;	
 							read_finished <= '1';
 						else
 							read_counter <= read_counter - 1;
 						end if;
 					end if;
+					
+				elsif state_current = state_send_byte then
+					if scl_counter = 3 then -- middle of low scl
+						sda <= write_bits(write_counter);
+						if write_counter = 0 then
+							state_next <= state_stop;
+							state_current <= state_receive_ack;
+							write_finished <= '1';
+							led3 <= '1';
+						else 
+							write_counter <= write_counter - 1;
+						end if;
+					end if;
+				
+				elsif state_current = state_send_nack then
+					if scl_counter = 3 then
+						sda <= '1';
+						state_current <= state_stop;
+					end if;
+				
+				
 				end if;
 			end if;
 		end if;

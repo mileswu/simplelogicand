@@ -118,14 +118,22 @@ BEGIN
       wait for 50 ns;
 		rst <= '0';
 
-      wait for 1100000 ns;
+      wait for 1097500 ns;
+		
 		sda <= '0';
-		test <= '1';
 		wait for 10000 ns;
-		wait for 40000 ns;
-		sda <= '1';
-		wait for 40000 ns;
 		sda <= 'Z';
+		wait for 80000 ns;
+		sda <= '0';
+		wait for 10000 ns;
+		sda <= 'Z';
+
+      wait for 1100000 ns;
+		test <= '1';
+		sda <= '0';
+		wait for 10000 ns;
+		sda <= 'Z';
+		--wait for 40000 ns;
 		
 
       -- insert stimulus here 
