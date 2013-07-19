@@ -45,7 +45,14 @@ ARCHITECTURE behavior OF smbustest IS
          clk_p : IN  std_logic;
          clk_n : IN  std_logic;
          scl : OUT  std_logic;
-         sda : INOUT  std_logic
+         sda : INOUT  std_logic;
+			led0 : OUT std_logic;
+			led1 : OUT std_logic;
+			led2 : OUT std_logic;
+			led3 : OUT std_logic;
+			led4 : OUT std_logic;
+			led5 : OUT std_logic;
+			led6 : OUT std_logic
         );
     END COMPONENT;
     
@@ -60,6 +67,14 @@ ARCHITECTURE behavior OF smbustest IS
 
  	--Outputs
    signal scl : std_logic;
+	signal led0 : std_logic;
+	signal led1 : std_logic;
+	signal led2 : std_logic;
+	signal led3 : std_logic;
+	signal led4 : std_logic;
+	signal led5 : std_logic;
+	signal led6 : std_logic;
+	signal test : std_logic;
 
    -- Clock period definitions
    constant clk_p_period : time := 5 ns;
@@ -72,7 +87,14 @@ BEGIN
           clk_n => clk_n,
           scl => scl,
           sda => sda,
-			 rst => rst
+			 rst => rst,
+			 led0 => led0,
+			 led1 => led1,
+			 led2 => led2,
+			 led3 => led3,
+			 led4 => led4,
+			 led5 => led5,
+			 led6 => led6
         );
 
    -- Clock process definitions
@@ -90,11 +112,17 @@ BEGIN
    stim_proc: process
    begin
 		rst <= '1';
+		sda <= 'Z';
+		test <= '0';
       -- hold reset state for 100 ns.
       wait for 50 ns;
 		rst <= '0';
 
-      wait for clk_p_period*10;
+      wait for 1100000 ns;
+		sda <= '0';
+		test <= '1';
+		wait for 10000 ns;
+		sda <= 'Z';
 		
 
       -- insert stimulus here 
