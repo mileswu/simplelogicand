@@ -57,10 +57,11 @@ signal slowclk_enable : std_logic;
 signal clk_counter : integer range 0 to 50000 := 0;
 signal scl_counter : integer range 0 to 50000 := 0;
 constant CLKSLOWCLK_RATIO : integer := 500;
+--constant CLKSLOWCLK_RATIO : integer := 2000;
 --if we want slowclk at 400khz (allow us to do things 4x in cycle), ratio should be 500
 
 type state_type is (state_idle, state_start, state_stop, state_send_slave_address,
-   state_send_rw, state_receive_ack);
+   state_send_rw_read, state_receive_ack, state_recieve_byte, state_deadend);
 signal state_current : state_type;
 signal state_next : state_type;
 
@@ -71,6 +72,15 @@ signal slaveaddress_bits : std_logic_vector(6 downto 0);
 
 signal receive_ack_counter : integer range 0 to 10;
 --signal sda_read : std_logic;
+
+signal read_bits : std_logic_vector(7 downto 0);
+signal read_counter : integer range 0 to 10;
+signal read_finished : std_logic;
+
+signal readout_finished : std_logic;
+signal readout_led_counter : integer range 0 to 1000000 := 0;
+signal readout_led_counter_blink : std_logic;
+signal readout_led_counter_pos : integer range 0 to 10;
 
 
 begin
@@ -108,7 +118,7 @@ begin
 		if rst = '1' then
 			scl <= '0';
 			scl_counter <= 0;
-		elsif rising_edge(clk) then
+		elsif falling_edge(clk) then
 			if slowclk_enable = '1' then
 				if scl_counter = 0 then
 					scl <= '1';
@@ -126,7 +136,6 @@ begin
 	end process;
 	
 	sda_generation: process(rst, clk)
-		variable sda_read : std_logic;
 	begin
 		if rst = '1' then
 			state_current <= state_idle;
@@ -138,15 +147,15 @@ begin
 			led2 <= '0';
 			led3 <= '0';
 			led4 <= '0';
-			led5 <= '0';
-			led6 <= '0';
 			slaveaddress_bits <= "1110100";
-		elsif rising_edge(clk) then
+			read_finished <= '0';
+		elsif falling_edge(clk) then
 			if slowclk_enable = '1' then
 				if state_current = state_idle then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= '1';
 						if idle_counter >= 30000  then
+							led4 <= '1';
 							state_current <= state_next;
 						else
 							idle_counter <= idle_counter + 1;
@@ -162,14 +171,14 @@ begin
 					if scl_counter = 3 then -- middle of low scl
 						sda <= slaveaddress_bits(slaveaddress_counter);
 						if slaveaddress_counter = 0 then
-							state_current <= state_send_rw;
+							state_current <= state_send_rw_read;
 						else 
 							slaveaddress_counter <= slaveaddress_counter - 1;
 						end if;
 					end if;
-				elsif state_current = state_send_rw then
+				elsif state_current = state_send_rw_read then
 					if scl_counter = 3 then
-						sda <= '0';
+						sda <= '1';
 						state_current <= state_receive_ack;
 						receive_ack_counter <= 0;
 					end if;
@@ -178,18 +187,65 @@ begin
 					if scl_counter = 3 then
 						sda <= 'Z';
 						receive_ack_counter <= 1;
-						led4 <= '1';
 					elsif scl_counter = 1 and receive_ack_counter = 1 then
 						if sda = '0' then
 							led0 <= '1';
-						elsif sda = '1' then
-							led1 <= '1';
 						else
-							led0 <= '1';
 							led1 <= '1';
 						end if;
-						state_current <= state_idle;
-						state_next <= state_idle;
+						--state_current <= state_idle;
+						--state_next <= state_idle;
+						state_current <= state_recieve_byte;
+						read_counter <= 7;
+					end if;
+				elsif state_current = state_recieve_byte then
+					if scl_counter = 1 then
+						led2 <= '1';
+						read_bits(read_counter) <= sda;
+						if read_counter = 0 then
+							state_current <= state_idle;	
+							state_next <= state_idle;
+							read_finished <= '1';
+						else
+							read_counter <= read_counter - 1;
+						end if;
+					end if;
+				end if;
+			end if;
+		end if;
+	end process;
+
+	readout_led: process(rst, clk)
+	begin
+		if rst = '1' then
+			readout_finished <= '0';
+			led5 <= '0';
+			led6 <= '0';
+			readout_led_counter <= 0;
+			readout_led_counter_blink <= '0';
+			readout_led_counter_pos <= 7;
+		elsif falling_edge(clk) then
+			if slowclk_enable = '1' then
+				if read_finished = '1' and readout_finished = '0' then
+					if readout_led_counter >= 100000 then
+						readout_led_counter <= 0;
+						
+						if readout_led_counter_blink = '0' then
+							led5 <= '1';
+							led6 <= read_bits(readout_led_counter_pos);
+							readout_led_counter_blink <= '1';
+							if readout_led_counter_pos = 0 then
+								readout_finished <= '1';
+							else
+								readout_led_counter_pos <= readout_led_counter_pos - 1;
+							end if;
+						else
+							led5 <= '0';
+							led6 <= '0';
+							readout_led_counter_blink <= '0';
+						end if;
+					else
+						readout_led_counter <= readout_led_counter + 1;
 					end if;
 				end if;
 			end if;

@@ -92,9 +92,9 @@ BEGIN
 			 led1 => led1,
 			 led2 => led2,
 			 led3 => led3,
+			 led6 => led6,
 			 led4 => led4,
-			 led5 => led5,
-			 led6 => led6
+			 led5 => led5
         );
 
    -- Clock process definitions
@@ -122,6 +122,9 @@ BEGIN
 		sda <= '0';
 		test <= '1';
 		wait for 10000 ns;
+		wait for 40000 ns;
+		sda <= '1';
+		wait for 40000 ns;
 		sda <= 'Z';
 		
 
