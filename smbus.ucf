@@ -1,0 +1,55 @@
+#NET "scl" LOC = C25;
+#NET "sda" LOC = B25;
+
+NET "scl" LOC = K21;
+NET "sda" LOC = L21;
+NET "outclk_p" LOC = H24;
+
+#NET "scl" IOSTANDARD = LVCMOS33;
+#NET "sda" IOSTANDARD = LVCMOS33;
+
+NET "scl" IOSTANDARD = LVCMOS25;
+NET "sda" IOSTANDARD = LVCMOS25;
+
+NET "outclk_p" IOSTANDARD = LVCMOS33;
+
+NET "clk_p" IOSTANDARD = LVDS;
+NET "clk_n" IOSTANDARD = LVDS;
+
+
+NET "rst" LOC = G12;
+
+
+NET "rst" IOSTANDARD = LVCMOS25;
+
+
+NET "clk_p" LOC = AD12;
+NET "clk_n" LOC = AD11;
+
+
+#NET "scl" PULLUP;
+NET "sda" PULLUP;
+NET "scl" DRIVE = 8;
+NET "sda" DRIVE = 8;
+NET "scl" SLEW = FAST;
+NET "sda" SLEW = FAST;
+
+# PlanAhead Generated physical constraints 
+
+NET "led0" LOC = AB8;
+NET "led0" IOSTANDARD = LVCMOS15;
+NET "led1" LOC = AA8;
+NET "led1" IOSTANDARD = LVCMOS15;
+NET "led2" LOC = AC9;
+NET "led2" IOSTANDARD = LVCMOS15;
+NET "led3" LOC = AB9;
+NET "led3" IOSTANDARD = LVCMOS15;
+NET "led4" LOC = AE26;
+NET "led4" IOSTANDARD = LVCMOS25;
+NET "led5" LOC = G19;
+NET "led5" IOSTANDARD = LVCMOS25;
+NET "led6" LOC = E18;
+NET "led6" IOSTANDARD = LVCMOS25;
+#breaks i2c
+#NET "led7" LOC = F16;
+#NET "led7" IOSTANDARD = LVCMOS25;
