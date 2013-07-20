@@ -53,8 +53,10 @@ end smbus;
 architecture Behavioral of smbus is
 
 signal clk: std_logic;
-signal slowclk_enable : std_logic;
+signal clk_scl_enable : std_logic;
+signal clk_sda_enable : std_logic;
 signal clk_counter : integer range 0 to 50000 := 0;
+
 signal scl_counter : integer range 0 to 50000 := 0;
 constant CLKSLOWCLK_RATIO : integer := 500;
 --constant CLKSLOWCLK_RATIO : integer := 2000;
@@ -95,19 +97,27 @@ begin
 		I => clk_p,
 		IB => clk_n
 	);
+	
+	outclk_p <= '0';
 				
 	slowclk_generation: process(rst, clk)
 	begin
 		if rst = '1' then
 			clk_counter <= 0;
-			slowclk_enable <= '0';
+			clk_scl_enable <= '0';
+			clk_sda_enable <= '0';
 		elsif rising_edge(clk) then
+			if clk_counter = CLKSLOWCLK_RATIO-1-50 then
+				clk_scl_enable <= '1';
+			else
+				clk_scl_enable <= '0';
+			end if;
+			
 			if clk_counter >= (CLKSLOWCLK_RATIO-1) then
-				outclk_p <= '1';
-				slowclk_enable <= '1';
+				clk_sda_enable <= '1';
 				clk_counter <= 0;
 			else
-				slowclk_enable <= '0';
+				clk_sda_enable <= '0';
 				clk_counter <= clk_counter + 1;
 			end if;
 		end if;
@@ -119,10 +129,10 @@ begin
 			scl <= '0';
 			scl_counter <= 0;
 		elsif falling_edge(clk) then
-			if slowclk_enable = '1' then
-				if scl_counter = 0 then
+			if clk_scl_enable = '1' then
+				if scl_counter = 3 then
 					scl <= '1';
-				elsif scl_counter = 2 then
+				elsif scl_counter = 1 then
 					scl <= '0';
 				end if;
 					
@@ -150,11 +160,11 @@ begin
 			slaveaddress_bits <= "1110100";
 			read_finished <= '0';
 		elsif falling_edge(clk) then
-			if slowclk_enable = '1' then
+			if clk_sda_enable = '1' then
 				if state_current = state_idle then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= '1';
-						if idle_counter >= 30000  then
+						if idle_counter >= 100 then
 							led4 <= '1';
 							state_current <= state_next;
 						else
@@ -225,7 +235,7 @@ begin
 			readout_led_counter_blink <= '0';
 			readout_led_counter_pos <= 7;
 		elsif falling_edge(clk) then
-			if slowclk_enable = '1' then
+			if clk_sda_enable = '1' then
 				if read_finished = '1' and readout_finished = '0' then
 					if readout_led_counter >= 100000 then
 						readout_led_counter <= 0;
