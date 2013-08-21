@@ -52,7 +52,10 @@ ARCHITECTURE behavior OF smbustest IS
 			led3 : OUT std_logic;
 			led4 : OUT std_logic;
 			led5 : OUT std_logic;
-			led6 : OUT std_logic
+			led6 : OUT std_logic;
+			resetL : out STD_LOGIC;
+			laserEn : out STD_LOGIC;
+			pgood25 : in STD_LOGIC
         );
     END COMPONENT;
     
@@ -61,6 +64,7 @@ ARCHITECTURE behavior OF smbustest IS
 	signal rst : std_logic := '0';
    signal clk_p : std_logic := '0';
    signal clk_n : std_logic := '0';
+	signal pgood25 : std_logic := '0';
 
 	--BiDirs
    signal sda : std_logic;
@@ -75,7 +79,9 @@ ARCHITECTURE behavior OF smbustest IS
 	signal led5 : std_logic;
 	signal led6 : std_logic;
 	signal test : std_logic;
-
+	signal resetL : std_logic;
+	signal laserEn : std_logic;
+	
    -- Clock period definitions
    constant clk_p_period : time := 5 ns;
  
@@ -94,7 +100,10 @@ BEGIN
 			 led3 => led3,
 			 led6 => led6,
 			 led4 => led4,
-			 led5 => led5
+			 led5 => led5,
+			 resetL => resetL,
+			 laserEn => laserEn,
+			 pgood25 => pgood25
         );
 
    -- Clock process definitions

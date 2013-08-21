@@ -46,7 +46,10 @@ entity smbus is
 			  led3 : out STD_LOGIC;
 			  led4 : out STD_LOGIC;
 			  led5 : out STD_LOGIC;
-			  led6 : out STD_LOGIC
+			  led6 : out STD_LOGIC;
+			  resetL : out STD_LOGIC;
+			  laserEn : out STD_LOGIC;
+			  pgood25 : in STD_LOGIC
 			  );
 end smbus;
 
