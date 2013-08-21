@@ -58,6 +58,7 @@ architecture Behavioral of smbus is
 signal clk: std_logic;
 signal clk_scl_enable : std_logic;
 signal clk_sda_enable : std_logic;
+signal clk_logic_enable : std_logic;
 signal clk_counter : integer range 0 to 50000 := 0;
 
 signal scl_counter : integer range 0 to 50000 := 0;
@@ -65,27 +66,27 @@ constant CLKSLOWCLK_RATIO : integer := 500;
 --constant CLKSLOWCLK_RATIO : integer := 2000;
 --if we want slowclk at 400khz (allow us to do things 4x in cycle), ratio should be 500
 
-type state_type is (state_idle, state_start, state_stop, state_send_slave_address,
-   state_send_rw_read, state_send_rw_write, state_receive_ack, state_recieve_byte, state_send_byte, state_send_nack);
-signal state_current : state_type;
-signal state_next : state_type;
+type i2c_state_type is (i2c_state_idle, i2c_state_start, i2c_state_stop, i2c_state_send_slave_address,
+   i2c_state_send_rw_read, i2c_state_send_rw_write, i2c_state_receive_ack, i2c_state_recieve_byte, i2c_state_send_byte, i2c_state_send_nack);
+signal i2c_state_current : i2c_state_type;
+signal i2c_state_next : i2c_state_type;
 
-signal idle_counter : integer range 0 to 50000;
+signal i2c_idle_counter : integer range 0 to 50000;
 
-signal slaveaddress_counter : integer range 0 to 10;
-signal slaveaddress_bits : std_logic_vector(6 downto 0);
+signal i2c_slaveaddress_counter : integer range 0 to 10;
+signal i2c_slaveaddress_bits : std_logic_vector(6 downto 0);
 
-signal receive_ack_counter : integer range 0 to 10;
+signal i2c_receive_ack_counter : integer range 0 to 10;
 
-signal write_bits : std_logic_vector(7 downto 0);
-signal write_counter : integer range 0 to 10;
-signal write_finished : std_logic;
+signal i2c_write_bits : std_logic_vector(7 downto 0);
+signal i2c_write_counter : integer range 0 to 10;
+signal i2c_write_finished : std_logic;
 
-signal read_bits : std_logic_vector(7 downto 0);
-signal read_counter : integer range 0 to 10;
-signal read_finished : std_logic;
+signal i2c_read_bits : std_logic_vector(7 downto 0);
+signal i2c_read_counter : integer range 0 to 10;
+signal i2c_read_finished : std_logic;
 
-signal stop_counter : integer range 0 to 10;
+signal i2c_stop_counter : integer range 0 to 10;
 
 signal readout_finished : std_logic;
 signal readout_led_counter : integer range 0 to 1000000 := 0;
@@ -114,11 +115,18 @@ begin
 			clk_counter <= 0;
 			clk_scl_enable <= '0';
 			clk_sda_enable <= '0';
+			clk_logic_enable <= '0';
 		elsif rising_edge(clk) then
 			if clk_counter = CLKSLOWCLK_RATIO-1-50 then
 				clk_scl_enable <= '1';
 			else
 				clk_scl_enable <= '0';
+			end if;
+			
+			if clk_counter = CLKSLOWCLK_RATIO-1-25 then
+				clk_logic_enable <= '1';
+			else
+				clk_logic_enable <= '0';
 			end if;
 			
 			if clk_counter >= (CLKSLOWCLK_RATIO-1) then
@@ -156,132 +164,132 @@ begin
 	sda_generation: process(rst, clk)
 	begin
 		if rst = '1' then
-			state_current <= state_idle;
-			state_next <= state_start;
-			idle_counter <= 0;
+			i2c_state_current <= i2c_state_idle;
+			i2c_state_next <= i2c_state_start;
+			i2c_idle_counter <= 0;
 			sda <= '1';
 			led0 <= '0';
 			led1 <= '0';
 			led2 <= '0';
 			led3 <= '0';
 			led4 <= '0';
-			slaveaddress_bits <= "1110100";
-			read_finished <= '0';
-			write_bits <= "10010101";
-			write_finished <= '0';
-			receive_ack_counter <= 0;
-			stop_counter <= 0;
+			i2c_slaveaddress_bits <= "1110100";
+			i2c_read_finished <= '0';
+			i2c_write_bits <= "10010101";
+			i2c_write_finished <= '0';
+			i2c_receive_ack_counter <= 0;
+			i2c_stop_counter <= 0;
 		elsif falling_edge(clk) then
 			if clk_sda_enable = '1' then
 			
-				if state_current = state_idle then
+				if i2c_state_current = i2c_state_idle then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= '1';
-						if idle_counter >= 100 then
-							idle_counter <= 0;
+						if i2c_idle_counter >= 100 then
+							i2c_idle_counter <= 0;
 							led4 <= '1';
-							state_current <= state_next;
+							i2c_state_current <= i2c_state_next;
 						else
-							idle_counter <= idle_counter + 1;
+							i2c_idle_counter <= i2c_idle_counter + 1;
 						end if;
 					end if;
 					
-				elsif state_current = state_start then
+				elsif i2c_state_current = i2c_state_start then
 					if	scl_counter = 1 then -- middle of high scl
 						sda <= '0';
-						state_current <= state_send_slave_address;
-						slaveaddress_counter <= 6; -- start at msb
+						i2c_state_current <= i2c_state_send_slave_address;
+						i2c_slaveaddress_counter <= 6; -- start at msb
 					end if;
 					
-				elsif state_current = state_stop then
+				elsif i2c_state_current = i2c_state_stop then
 					if	scl_counter = 3 then
-						stop_counter <= 1;
+						i2c_stop_counter <= 1;
 						sda <= '0';
-					elsif scl_counter = 1 and stop_counter = 1 then
+					elsif scl_counter = 1 and i2c_stop_counter = 1 then
 						sda <= '1';
-						state_current <= state_idle;
-						stop_counter <= 0;
-						if read_finished = '0' then
-							state_next <= state_start;
+						i2c_state_current <= i2c_state_idle;
+						i2c_stop_counter <= 0;
+						if i2c_read_finished = '0' then
+							i2c_state_next <= i2c_state_start;
 						else
-							state_next <= state_idle;
+							i2c_state_next <= i2c_state_idle;
 						end if;
 					end if;
 					
-				elsif state_current = state_send_slave_address then
+				elsif i2c_state_current = i2c_state_send_slave_address then
 					if scl_counter = 3 then -- middle of low scl
-						sda <= slaveaddress_bits(slaveaddress_counter);
-						if slaveaddress_counter = 0 then
-							if write_finished = '0' then
-								state_current <= state_send_rw_write;
+						sda <= i2c_slaveaddress_bits(i2c_slaveaddress_counter);
+						if i2c_slaveaddress_counter = 0 then
+							if i2c_write_finished = '0' then
+								i2c_state_current <= i2c_state_send_rw_write;
 							else
-								state_current <= state_send_rw_read;
+								i2c_state_current <= i2c_state_send_rw_read;
 							end if;
 						else 
-							slaveaddress_counter <= slaveaddress_counter - 1;
+							i2c_slaveaddress_counter <= i2c_slaveaddress_counter - 1;
 						end if;
 					end if;
 					
-				elsif state_current = state_send_rw_read then
+				elsif i2c_state_current = i2c_state_send_rw_read then
 					if scl_counter = 3 then
 						sda <= '1';
-						state_current <= state_receive_ack;
-						state_next <= state_recieve_byte;
+						i2c_state_current <= i2c_state_receive_ack;
+						i2c_state_next <= i2c_state_recieve_byte;
 					end if;
 					
-				elsif state_current = state_send_rw_write then
+				elsif i2c_state_current = i2c_state_send_rw_write then
 					if scl_counter = 3 then
 						sda <= '0';
-						state_current <= state_receive_ack;
-						state_next <= state_send_byte;
+						i2c_state_current <= i2c_state_receive_ack;
+						i2c_state_next <= i2c_state_send_byte;
 					end if;
 					
-				elsif state_current = state_receive_ack then
+				elsif i2c_state_current = i2c_state_receive_ack then
 				   
 					if scl_counter = 3 then
 						sda <= 'Z';
-						receive_ack_counter <= 1;
-					elsif scl_counter = 1 and receive_ack_counter = 1 then
+						i2c_receive_ack_counter <= 1;
+					elsif scl_counter = 1 and i2c_receive_ack_counter = 1 then
 						if sda = '0' then
 							led0 <= '1';
 						else
 							led1 <= '1';
 						end if;
-						state_current <= state_next;
-						read_counter <= 7;
-						write_counter <= 7;
-						receive_ack_counter <= 0;
+						i2c_state_current <= i2c_state_next;
+						i2c_read_counter <= 7;
+						i2c_write_counter <= 7;
+						i2c_receive_ack_counter <= 0;
 					end if;
 					
-				elsif state_current = state_recieve_byte then
+				elsif i2c_state_current = i2c_state_recieve_byte then
 					if scl_counter = 1 then
 						led2 <= '1';
-						read_bits(read_counter) <= sda;
-						if read_counter = 0 then
-							state_current <= state_send_nack;	
-							read_finished <= '1';
+						i2c_read_bits(i2c_read_counter) <= sda;
+						if i2c_read_counter = 0 then
+							i2c_state_current <= i2c_state_send_nack;	
+							i2c_read_finished <= '1';
 						else
-							read_counter <= read_counter - 1;
+							i2c_read_counter <= i2c_read_counter - 1;
 						end if;
 					end if;
 					
-				elsif state_current = state_send_byte then
+				elsif i2c_state_current = i2c_state_send_byte then
 					if scl_counter = 3 then -- middle of low scl
-						sda <= write_bits(write_counter);
-						if write_counter = 0 then
-							state_next <= state_stop;
-							state_current <= state_receive_ack;
-							write_finished <= '1';
+						sda <= i2c_write_bits(i2c_write_counter);
+						if i2c_write_counter = 0 then
+							i2c_state_next <= i2c_state_stop;
+							i2c_state_current <= i2c_state_receive_ack;
+							i2c_write_finished <= '1';
 							led3 <= '1';
 						else 
-							write_counter <= write_counter - 1;
+							i2c_write_counter <= i2c_write_counter - 1;
 						end if;
 					end if;
 				
-				elsif state_current = state_send_nack then
+				elsif i2c_state_current = i2c_state_send_nack then
 					if scl_counter = 3 then
 						sda <= '1';
-						state_current <= state_stop;
+						i2c_state_current <= i2c_state_stop;
 					end if;
 				
 				
@@ -301,13 +309,13 @@ begin
 			readout_led_counter_pos <= 7;
 		elsif falling_edge(clk) then
 			if clk_sda_enable = '1' then
-				if read_finished = '1' and readout_finished = '0' then
+				if i2c_read_finished = '1' and readout_finished = '0' then
 					if readout_led_counter >= 100000 then
 						readout_led_counter <= 0;
 						
 						if readout_led_counter_blink = '0' then
 							led5 <= '1';
-							led6 <= read_bits(readout_led_counter_pos);
+							led6 <= i2c_read_bits(readout_led_counter_pos);
 							readout_led_counter_blink <= '1';
 							if readout_led_counter_pos = 0 then
 								readout_finished <= '1';
@@ -323,6 +331,16 @@ begin
 						readout_led_counter <= readout_led_counter + 1;
 					end if;
 				end if;
+			end if;
+		end if;
+	end process;
+	
+	logic_statemachine: process(rst, clk)
+	begin
+		if rst = '1' then
+
+		elsif falling_edge(clk) then
+			if clk_logic_enable = '1' then
 			end if;
 		end if;
 	end process;
