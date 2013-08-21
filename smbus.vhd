@@ -93,6 +93,13 @@ signal readout_led_counter : integer range 0 to 1000000 := 0;
 signal readout_led_counter_blink : std_logic;
 signal readout_led_counter_pos : integer range 0 to 10;
 
+type logic_state_type is (logic_state_2,
+logic_state_3a, logic_state_3b, logic_state_3c
+);
+signal logic_state_current : logic_state_type;
+
+constant LOGIC_WAIT_1MS : integer := 400;
+signal logic_wait_counter : integer range 0 to 1000000 := 0;
 
 begin
 
@@ -338,9 +345,30 @@ begin
 	logic_statemachine: process(rst, clk)
 	begin
 		if rst = '1' then
+			resetL <= '0';
+			laserEn <= '0';
+			logic_state_current <= logic_state_2;
 
 		elsif falling_edge(clk) then
 			if clk_logic_enable = '1' then
+
+				if logic_state_current = logic_state_2 then
+					if pgood25 = '1' then
+						resetL <= '1';
+						logic_state_current <= logic_state_3a;
+						logic_wait_counter <= 0;
+					end if;
+					
+				elsif logic_state_current = logic_state_3a then
+					if logic_wait_counter = LOGIC_WAIT_1MS*25 then
+						logic_state_current <= logic_state_3b;
+					else
+						logic_wait_counter <= logic_wait_counter + 1;
+					end if;
+					
+				--elsif logic_state_current = logic_state_3b then
+				
+				end if;
 			end if;
 		end if;
 	end process;

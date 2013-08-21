@@ -126,8 +126,11 @@ BEGIN
       -- hold reset state for 100 ns.
       wait for 50 ns;
 		rst <= '0';
+		
+		wait for 100 ns;
+		pgood25 <= '1';
 
-      wait for 1097500 ns;
+      wait for 1097400 ns;
 		
 		sda <= '0';
 		wait for 10000 ns;
