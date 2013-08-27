@@ -53,6 +53,7 @@ ARCHITECTURE behavior OF smbustest IS
 			led4 : OUT std_logic;
 			led5 : OUT std_logic;
 			led6 : OUT std_logic;
+			led7 : OUT std_logic;
 			resetL : out STD_LOGIC;
 			laserEn : out STD_LOGIC;
 			pgood25 : in STD_LOGIC
@@ -78,6 +79,7 @@ ARCHITECTURE behavior OF smbustest IS
 	signal led4 : std_logic;
 	signal led5 : std_logic;
 	signal led6 : std_logic;
+	signal led7 : std_logic;
 	signal test : std_logic;
 	signal resetL : std_logic;
 	signal laserEn : std_logic;
@@ -99,6 +101,7 @@ BEGIN
 			 led2 => led2,
 			 led3 => led3,
 			 led6 => led6,
+			 led7 => led7,
 			 led4 => led4,
 			 led5 => led5,
 			 resetL => resetL,

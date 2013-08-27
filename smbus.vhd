@@ -39,7 +39,6 @@ entity smbus is
            clk_n : in  STD_LOGIC;
            scl : out  STD_LOGIC;
            sda : inout  STD_LOGIC;
-			  outclk_p : out STD_LOGIC;
 			  led0 : out STD_LOGIC;
 			  led1 : out STD_LOGIC;
 			  led2 : out STD_LOGIC;
@@ -47,6 +46,7 @@ entity smbus is
 			  led4 : out STD_LOGIC;
 			  led5 : out STD_LOGIC;
 			  led6 : out STD_LOGIC;
+			  led7 : out STD_LOGIC;
 			  resetL : out STD_LOGIC;
 			  laserEn : out STD_LOGIC;
 			  pgood25 : in STD_LOGIC
@@ -113,9 +113,7 @@ begin
 		I => clk_p,
 		IB => clk_n
 	);
-	
-	outclk_p <= '0';
-				
+					
 	slowclk_generation: process(rst, clk)
 	begin
 		if rst = '1' then
@@ -172,7 +170,8 @@ begin
 	begin
 		if rst = '1' then
 			i2c_state_current <= i2c_state_idle;
-			i2c_state_next <= i2c_state_start;
+			--i2c_state_next <= i2c_state_start;
+			i2c_state_next <= i2c_state_idle;
 			i2c_idle_counter <= 0;
 			sda <= '1';
 			led0 <= '0';
@@ -341,12 +340,14 @@ begin
 			end if;
 		end if;
 	end process;
+
 	
 	logic_statemachine: process(rst, clk)
 	begin
 		if rst = '1' then
 			resetL <= '0';
 			laserEn <= '0';
+			led7 <= '0';
 			logic_state_current <= logic_state_2;
 
 		elsif falling_edge(clk) then
@@ -366,7 +367,9 @@ begin
 						logic_wait_counter <= logic_wait_counter + 1;
 					end if;
 					
-				--elsif logic_state_current = logic_state_3b then
+				elsif logic_state_current = logic_state_3b then
+					led7 <= '1';
+
 				
 				end if;
 			end if;
