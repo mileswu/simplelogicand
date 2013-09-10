@@ -78,8 +78,10 @@ signal i2c_slaveaddress_bits : std_logic_vector(6 downto 0);
 
 signal i2c_receive_ack_counter : integer range 0 to 10;
 
-signal i2c_write_bits : std_logic_vector(7 downto 0);
-signal i2c_write_counter : integer range 0 to 10;
+constant i2c_write_bits_maxsize : integer := 5000;
+signal i2c_write_bits_size : integer range 0 to i2c_write_bits_maxsize;
+signal i2c_write_bits : std_logic_vector(i2c_write_bits_maxsize downto 0);
+signal i2c_write_counter : integer range 0 to i2c_write_bits_maxsize;
 signal i2c_write_finished : std_logic;
 
 signal i2c_read_bits : std_logic_vector(7 downto 0);
@@ -94,11 +96,17 @@ signal readout_led_counter_blink : std_logic;
 signal readout_led_counter_pos : integer range 0 to 10;
 
 type logic_state_type is (logic_state_2,
-logic_state_3a, logic_state_3b, logic_state_3c
+logic_state_3a, logic_state_3b, logic_state_3c,
+logic_state_4a
 );
 signal logic_state_current : logic_state_type;
 
+signal logic_i2c_start : std_logic;
+type logic_i2c_rw_type is (logic_i2c_read, logic_i2c_write);
+signal logic_i2c_rw : logic_i2c_rw_type;
+
 constant LOGIC_WAIT_1MS : integer := 400;
+--constant LOGIC_WAIT_1MS : integer := 2;
 signal logic_wait_counter : integer range 0 to 1000000 := 0;
 
 begin
@@ -170,7 +178,6 @@ begin
 	begin
 		if rst = '1' then
 			i2c_state_current <= i2c_state_idle;
-			--i2c_state_next <= i2c_state_start;
 			i2c_state_next <= i2c_state_idle;
 			i2c_idle_counter <= 0;
 			sda <= '1';
@@ -179,21 +186,24 @@ begin
 			led2 <= '0';
 			led3 <= '0';
 			led4 <= '0';
-			i2c_slaveaddress_bits <= "1110100";
+			i2c_slaveaddress_bits <= "1010100";
 			i2c_read_finished <= '0';
-			i2c_write_bits <= "10010101";
 			i2c_write_finished <= '0';
 			i2c_receive_ack_counter <= 0;
 			i2c_stop_counter <= 0;
 		elsif falling_edge(clk) then
 			if clk_sda_enable = '1' then
+				if logic_i2c_start = '1' then
+					i2c_state_next <= i2c_state_start;
+					i2c_read_finished <= '0';
+					i2c_write_finished <= '0';
+				end if;
 			
 				if i2c_state_current = i2c_state_idle then
 					if scl_counter = 3 then -- middle of low scl
 						sda <= '1';
-						if i2c_idle_counter >= 100 then
+						if i2c_idle_counter >= 5 then --idle for 5 cycles
 							i2c_idle_counter <= 0;
-							led4 <= '1';
 							i2c_state_current <= i2c_state_next;
 						else
 							i2c_idle_counter <= i2c_idle_counter + 1;
@@ -202,6 +212,7 @@ begin
 					
 				elsif i2c_state_current = i2c_state_start then
 					if	scl_counter = 1 then -- middle of high scl
+						led4 <= '1';
 						sda <= '0';
 						i2c_state_current <= i2c_state_send_slave_address;
 						i2c_slaveaddress_counter <= 6; -- start at msb
@@ -215,10 +226,12 @@ begin
 						sda <= '1';
 						i2c_state_current <= i2c_state_idle;
 						i2c_stop_counter <= 0;
-						if i2c_read_finished = '0' then
-							i2c_state_next <= i2c_state_start;
+						i2c_state_next <= i2c_state_idle;
+						
+						if logic_i2c_rw = logic_i2c_write then
+							i2c_write_finished <= '1';
 						else
-							i2c_state_next <= i2c_state_idle;
+							i2c_read_finished <= '1';
 						end if;
 					end if;
 					
@@ -226,7 +239,7 @@ begin
 					if scl_counter = 3 then -- middle of low scl
 						sda <= i2c_slaveaddress_bits(i2c_slaveaddress_counter);
 						if i2c_slaveaddress_counter = 0 then
-							if i2c_write_finished = '0' then
+							if logic_i2c_rw = logic_i2c_write then
 								i2c_state_current <= i2c_state_send_rw_write;
 							else
 								i2c_state_current <= i2c_state_send_rw_read;
@@ -241,6 +254,7 @@ begin
 						sda <= '1';
 						i2c_state_current <= i2c_state_receive_ack;
 						i2c_state_next <= i2c_state_recieve_byte;
+						i2c_read_counter <= 7;
 					end if;
 					
 				elsif i2c_state_current = i2c_state_send_rw_write then
@@ -248,6 +262,7 @@ begin
 						sda <= '0';
 						i2c_state_current <= i2c_state_receive_ack;
 						i2c_state_next <= i2c_state_send_byte;
+						i2c_write_counter <= i2c_write_bits_size;
 					end if;
 					
 				elsif i2c_state_current = i2c_state_receive_ack then
@@ -262,8 +277,6 @@ begin
 							led1 <= '1';
 						end if;
 						i2c_state_current <= i2c_state_next;
-						i2c_read_counter <= 7;
-						i2c_write_counter <= 7;
 						i2c_receive_ack_counter <= 0;
 					end if;
 					
@@ -273,7 +286,6 @@ begin
 						i2c_read_bits(i2c_read_counter) <= sda;
 						if i2c_read_counter = 0 then
 							i2c_state_current <= i2c_state_send_nack;	
-							i2c_read_finished <= '1';
 						else
 							i2c_read_counter <= i2c_read_counter - 1;
 						end if;
@@ -285,8 +297,11 @@ begin
 						if i2c_write_counter = 0 then
 							i2c_state_next <= i2c_state_stop;
 							i2c_state_current <= i2c_state_receive_ack;
-							i2c_write_finished <= '1';
 							led3 <= '1';
+						elsif i2c_write_counter mod 8 = 0 then
+							i2c_state_next <= i2c_state_send_byte;
+							i2c_state_current <= i2c_state_receive_ack;
+							i2c_write_counter <= i2c_write_counter - 1;
 						else 
 							i2c_write_counter <= i2c_write_counter - 1;
 						end if;
@@ -349,6 +364,7 @@ begin
 			laserEn <= '0';
 			led7 <= '0';
 			logic_state_current <= logic_state_2;
+			logic_i2c_start <= '0';
 
 		elsif falling_edge(clk) then
 			if clk_logic_enable = '1' then
@@ -369,6 +385,34 @@ begin
 					
 				elsif logic_state_current = logic_state_3b then
 					led7 <= '1';
+					logic_i2c_start <= '1';
+					logic_i2c_rw <= logic_i2c_write;
+					i2c_write_bits_size <= 4*8 -1;
+					i2c_write_bits <= (i2c_write_bits_maxsize downto 4*8 => '0') & x"8d393333";
+					logic_state_current <= logic_state_4a;
+				
+				elsif logic_state_current = logic_state_3c then
+					if i2c_write_finished = '0' then
+						logic_i2c_start <= '0'; --turn off starter from previous state
+					else
+						logic_i2c_start <= '1';
+						logic_i2c_rw <= logic_i2c_write;
+						logic_state_current <= logic_state_4a;
+						logic_wait_counter <= 0;
+					end if;
+				
+				elsif logic_state_current = logic_state_4a then
+					if i2c_write_finished = '0' then
+						logic_i2c_start <= '0'; --turn off starter from previous state
+					else
+						if logic_wait_counter = LOGIC_WAIT_1MS*5 then
+							led7 <= '0';
+							--logic_state_current <= logic_state_3b;
+						else
+							logic_wait_counter <= logic_wait_counter + 1;
+						end if;
+					end if;
+					
 
 				
 				end if;
