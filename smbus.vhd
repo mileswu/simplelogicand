@@ -408,6 +408,11 @@ begin
 						if logic_wait_counter = LOGIC_WAIT_1MS*5 then
 							led7 <= '0';
 							--logic_state_current <= logic_state_3b;
+							logic_i2c_start <= '1';
+							logic_i2c_rw <= logic_i2c_read;
+							logic_wait_counter <= LOGIC_WAIT_1MS*5 + 1;
+						elsif logic_wait_counter = LOGIC_WAIT_1MS*5 + 1 then
+							logic_i2c_start <= '0';
 						else
 							logic_wait_counter <= logic_wait_counter + 1;
 						end if;
