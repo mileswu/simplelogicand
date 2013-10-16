@@ -1,12 +1,17 @@
-NET "scl" LOC = H24;
-NET "sda" LOC = C26;
+NET "sda" LOC = B28;
+NET "scl" LOC = C24;
 NET "scl" IOSTANDARD = LVCMOS33;
 NET "sda" IOSTANDARD = LVCMOS33;
 NET "sda" PULLUP;
-NET "scl" DRIVE = 8;
-NET "sda" DRIVE = 8;
-NET "scl" SLEW = FAST;
-NET "sda" SLEW = FAST;
+NET "scl" DRIVE = 4;
+NET "sda" DRIVE = 4;
+NET "scl" SLEW = SLOW;
+NET "sda" SLEW = SLOW;
+
+NET "sda_33v" LOC = A28;
+NET "scl_33v" LOC = B24;
+NET "sda_33v" IOSTANDARD = LVCMOS33;
+NET "scl_33v" IOSTANDARD = LVCMOS33;
 
 NET "clk_p" LOC = AD12;
 NET "clk_n" LOC = AD11;
