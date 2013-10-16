@@ -46,6 +46,8 @@ ARCHITECTURE behavior OF smbustest IS
          clk_n : IN  std_logic;
          scl : OUT  std_logic;
          sda : INOUT  std_logic;
+			scl_gnd : out  STD_LOGIC;
+         sda_gnd : out  STD_LOGIC;
 			led0 : OUT std_logic;
 			led1 : OUT std_logic;
 			led2 : OUT std_logic;
@@ -72,6 +74,8 @@ ARCHITECTURE behavior OF smbustest IS
 
  	--Outputs
    signal scl : std_logic;
+   signal scl_gnd : std_logic;
+   signal sda_gnd : std_logic;
 	signal led0 : std_logic;
 	signal led1 : std_logic;
 	signal led2 : std_logic;
@@ -95,6 +99,8 @@ BEGIN
           clk_n => clk_n,
           scl => scl,
           sda => sda,
+          sda_gnd => sda_gnd,
+          scl_gnd => scl_gnd,
 			 rst => rst,
 			 led0 => led0,
 			 led1 => led1,
