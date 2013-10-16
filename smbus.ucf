@@ -8,10 +8,10 @@ NET "sda" DRIVE = 4;
 NET "scl" SLEW = SLOW;
 NET "sda" SLEW = SLOW;
 
-NET "sda_33v" LOC = A28;
-NET "scl_33v" LOC = B24;
-NET "sda_33v" IOSTANDARD = LVCMOS33;
-NET "scl_33v" IOSTANDARD = LVCMOS33;
+NET "sda_gnd" LOC = A28;
+NET "scl_gnd" LOC = B24;
+NET "sda_gnd" IOSTANDARD = LVCMOS33;
+NET "scl_gnd" IOSTANDARD = LVCMOS33;
 
 NET "clk_p" LOC = AD12;
 NET "clk_n" LOC = AD11;

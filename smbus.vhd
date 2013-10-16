@@ -39,8 +39,8 @@ entity smbus is
            clk_n : in  STD_LOGIC;
            scl : out  STD_LOGIC;
            sda : inout  STD_LOGIC;
-			  scl_33v : out  STD_LOGIC;
-           sda_33v : out  STD_LOGIC;
+			  scl_gnd : out  STD_LOGIC;
+           sda_gnd : out  STD_LOGIC;
 			  led0 : out STD_LOGIC;
 			  led1 : out STD_LOGIC;
 			  led2 : out STD_LOGIC;
@@ -149,8 +149,8 @@ begin
 		I => slowclk_my -- 1-bit input: Clock input
 	);
 	
-	scl_33v <= '0';
-	sda_33v <= '0';
+	scl_gnd <= '0';
+	sda_gnd <= '0';
 	
 	i2c_generation: process(rst, slowclk)
 	begin
