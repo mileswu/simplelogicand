@@ -63,8 +63,8 @@ signal slowclk_my: std_logic;
 signal clk_counter : integer range 0 to 50000 := 0;
 
 signal scl_counter : integer range 0 to 50000 := 0;
---constant CLKSLOWCLK_RATIO : integer := 250;
-constant CLKSLOWCLK_RATIO : integer := 63;
+constant CLKSLOWCLK_RATIO : integer := 250;
+--constant CLKSLOWCLK_RATIO : integer := 63;
 
 type i2c_state_type is (i2c_state_idle, i2c_state_start, i2c_state_stop, i2c_state_send_slave_address,
    i2c_state_send_rw_read, i2c_state_send_rw_write, i2c_state_receive_ack, i2c_state_recieve_byte, i2c_state_send_byte, i2c_state_send_nack);
@@ -97,7 +97,8 @@ signal readout_led_counter_pos : integer range 0 to 10;
 
 type logic_state_type is (logic_state_2,
 logic_state_3a, logic_state_3b, logic_state_3c,
-logic_state_4a, logic_state_deadend
+logic_state_4a,
+logic_state_readout, logic_state_deadend
 );
 signal logic_state_current : logic_state_type;
 
@@ -105,8 +106,8 @@ signal logic_i2c_start : std_logic;
 type logic_i2c_rw_type is (logic_i2c_read, logic_i2c_write);
 signal logic_i2c_rw : logic_i2c_rw_type;
 
---constant LOGIC_WAIT_1MS : integer := 400;
-constant LOGIC_WAIT_1MS : integer := 400*4;
+constant LOGIC_WAIT_1MS : integer := 400;
+--constant LOGIC_WAIT_1MS : integer := 400*4;
 --constant LOGIC_WAIT_1MS : integer := 2;
 signal logic_wait_counter : integer range 0 to 1000000 := 0;
 
@@ -182,22 +183,19 @@ begin
 				i2c_write_bits_size <= 4*8 -1;
 				i2c_write_bits <= (i2c_write_bits_maxsize downto 4*8 => '0') & x"8d393334";
 				logic_wait_counter <= 0;
-				logic_state_current <= logic_state_4a;
+				logic_state_current <= logic_state_readout;
 			
 			elsif logic_state_current = logic_state_3c then
-				if i2c_write_finished = '0' then
-					logic_i2c_start <= '0'; --turn off starter from previous state
-				else
+				if i2c_write_finished = '1' then
 					logic_i2c_start <= '1';
 					logic_i2c_rw <= logic_i2c_write;
 					logic_state_current <= logic_state_4a;
 					logic_wait_counter <= 0;
 				end if;
 			
-			elsif logic_state_current = logic_state_4a then
-				if i2c_write_finished = '0' then
-					logic_i2c_start <= '0'; --turn off starter from previous state
-				else
+			-- special readout logic
+			elsif logic_state_current = logic_state_readout then
+				if i2c_write_finished = '1' then
 					if logic_wait_counter = 60*4 then
 						led7 <= '0';
 						logic_i2c_start <= '1';
@@ -237,7 +235,6 @@ begin
 		if rst = '1' then
 			i2c_state_current <= i2c_state_idle;
 			i2c_state_next <= i2c_state_idle;
-			--i2c_state_next <= i2c_state_start;
 			i2c_idle_counter <= 0;
 			sda <= '1';
 			led0 <= '0';
@@ -251,14 +248,12 @@ begin
 			i2c_receive_ack_counter <= 0;
 			i2c_stop_counter <= 0;
 			
-			--i2c_write_bits_size <= 4*8 -1;
-			--i2c_write_bits <= (i2c_write_bits_maxsize downto 4*8 => '0') & x"8d393333";
-			--logic_i2c_rw <= logic_i2c_write;
 		elsif falling_edge(slowclk) then
 			if logic_i2c_start = '1' then
 				i2c_state_next <= i2c_state_start;
 				i2c_read_finished <= '0';
 				i2c_write_finished <= '0';
+				logic_i2c_start <= '0'; -- turn itself off
 			end if;
 		
 			if i2c_state_current = i2c_state_idle then
@@ -415,16 +410,6 @@ begin
 		
 		
 	end process;
-	
-
-	--led5 <= '0';
-	--led6 <= '0';
-	
---
---	readout_led: process(rst, clk)
---	begin
-
---	end process;
 
 
 end Behavioral;
