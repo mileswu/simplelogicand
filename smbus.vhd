@@ -78,7 +78,7 @@ signal i2c_slaveaddress_bits : std_logic_vector(6 downto 0);
 
 signal i2c_receive_ack_counter : integer range 0 to 10;
 
-constant i2c_write_bits_maxsize : integer := 5000;
+constant i2c_write_bits_maxsize : integer := 120;
 signal i2c_write_bits_size : integer range 0 to i2c_write_bits_maxsize;
 signal i2c_write_bits : std_logic_vector(i2c_write_bits_maxsize downto 0);
 signal i2c_write_counter : integer range 0 to i2c_write_bits_maxsize;
@@ -99,13 +99,15 @@ type logic_state_type is (logic_state_2,
 logic_state_4,logic_state_5,
 logic_state_6a,logic_state_6b,
 logic_state_7a, logic_state_7b, logic_state_7c, logic_state_7d, logic_state_7e,
+logic_state_8a, logic_state_8b,
+logic_state_9a, logic_state_9b,
 logic_state_10,
 logic_state_11a, logic_state_11b, logic_state_11c, logic_state_11d, logic_state_11e, logic_state_11f,
 logic_state_11g, logic_state_11h, logic_state_11i, logic_state_11j, logic_state_11k, logic_state_11l, 
 logic_state_11m, logic_state_11n, logic_state_11o, logic_state_11p, logic_state_11q, logic_state_11r, 
 logic_state_11s, logic_state_11t, logic_state_11u,
 logic_state_12a, logic_state_12b,
-logic_state_13a, logic_state_13b, logic_state_13c,
+logic_state_13a, logic_state_13b, logic_state_13c, logic_state_13d, logic_state_13e, logic_state_13f,
 logic_state_00, logic_state_wait,
 logic_state_readout, logic_state_deadend
 );
@@ -166,6 +168,7 @@ begin
 	
 	i2c_generation: process(rst, slowclk)
 	begin
+	if falling_edge(slowclk) then
 		if rst = '1' then
 			resetL <= '0';
 			laserEn <= '0';
@@ -173,7 +176,8 @@ begin
 			logic_state_current <= logic_state_2;
 			logic_i2c_start <= '0';
 			logic_wait_counter <= 0;
-		elsif falling_edge(slowclk) then
+		else
+		--elsif falling_edge(slowclk) then
 			if logic_state_current = logic_state_2 then
 				if pgood25 = '1' then
 					resetL <= '1';
@@ -184,6 +188,7 @@ begin
 						
 			-- step 4
 			elsif logic_state_current = logic_state_4 then
+				led7 <= '1';
 				logic_i2c_start <= '1';
 				logic_i2c_rw <= logic_i2c_write;
 				i2c_write_bits_size <= 4*8 -1;
@@ -218,6 +223,7 @@ begin
 			-- step 7
 			elsif logic_state_current = logic_state_7a then
 				logic_i2c_start <= '1';
+				i2c_write_bits_size <= 2*8 -1;
 				i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"2f0f";
 				logic_state_current <= logic_state_7b;
 			
@@ -246,14 +252,42 @@ begin
 				if logic_i2c_start = '0' and i2c_write_finished = '1' then
 					logic_i2c_start <= '1';
 					i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"2074";
-					--logic_state_next <= logic_state_8;
-					logic_state_next <= logic_state_10;
+					logic_state_next <= logic_state_8a;
 					logic_state_current <= logic_state_00;
 				end if;
 				
 			-- step 8
+			elsif logic_state_current = logic_state_8a then
+				logic_i2c_start <= '1';
+				i2c_write_bits_size <= 1*8 -1;
+				i2c_write_bits <= (i2c_write_bits_maxsize downto 1*8 => '0') & x"0a";
+				logic_state_current <= logic_state_8b;
 			
+			elsif logic_state_current = logic_state_8b then
+				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+					logic_i2c_start <= '1';
+					logic_i2c_rw <= logic_i2c_read;
+					logic_state_next <= logic_state_9a;
+					logic_state_current <= logic_state_00;
+				end if;
+
 			-- step 9
+			elsif logic_state_current = logic_state_9a then
+				logic_i2c_start <= '1';
+				i2c_write_bits_size <= 13*8 -1;
+				i2c_write_bits <= (i2c_write_bits_maxsize downto 13*8 => '0') & x"22bf02" & (i2c_read_bits and x"03")
+					& x"bf02" & (i2c_read_bits and x"03") & x"bf02" & (i2c_read_bits and x"03") & x"bf02" & (i2c_read_bits and x"03");
+				logic_state_current <= logic_state_9b;
+			
+			elsif logic_state_current = logic_state_9b then
+				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+					logic_i2c_start <= '1';
+					i2c_write_bits_size <= 2*8 -1;
+					i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"34" &
+						i2c_read_bits(1 downto 0) & i2c_read_bits(1 downto 0) & i2c_read_bits(1 downto 0) & i2c_read_bits(1 downto 0);
+					logic_state_next <= logic_state_10;
+					logic_state_current <= logic_state_00;
+				end if;
 			
 			-- step 10
 			elsif logic_state_current = logic_state_10 then
@@ -419,6 +453,7 @@ begin
 			-- step 12
 			elsif logic_state_current = logic_state_12a then
 				logic_i2c_start <= '1';
+				i2c_write_bits_size <= 2*8 -1;
 				i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"2f00";
 				logic_state_current <= logic_state_12b;
 			
@@ -434,6 +469,7 @@ begin
 			-- step 13
 			elsif logic_state_current = logic_state_13a then
 				logic_i2c_start <= '1';
+				i2c_write_bits_size <= 2*8 -1;
 				i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"8d85";
 				logic_state_current <= logic_state_13b;
 			
@@ -449,11 +485,35 @@ begin
 					logic_i2c_start <= '1';
 					i2c_write_bits_size <= 5*8 -1;
 					i2c_write_bits <= (i2c_write_bits_maxsize downto 5*8 => '0') & x"10ffffffff";
+					logic_state_current <= logic_state_13d;
+				end if;
+				
+			elsif logic_state_current = logic_state_13d then
+				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+					logic_i2c_start <= '1';
+					i2c_write_bits_size <= 2*8 -1;
+					i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"3380";
+					logic_state_current <= logic_state_13e;
+				end if;	
+				
+			elsif logic_state_current = logic_state_13e then
+				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+					logic_i2c_start <= '1';
+					i2c_write_bits_size <= 5*8 -1;
+					i2c_write_bits <= (i2c_write_bits_maxsize downto 5*8 => '0') & x"8593818e89";
+					logic_state_current <= logic_state_13f;
+				end if;
+				
+			elsif logic_state_current = logic_state_13f then
+				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+					logic_i2c_start <= '1';
+					i2c_write_bits_size <= 2*8 -1;
+					i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"91d3";
 					logic_state_current <= logic_state_00;
 					logic_state_next <= logic_state_deadend;
 					logic_wait_ms <= 600;
-				end if;				
-			
+				end if;	
+				
 			-- waiter
 			elsif logic_state_current = logic_state_wait then
 				if logic_wait_counter = LOGIC_WAIT_1MS*logic_wait_ms then
@@ -465,9 +525,9 @@ begin
 			
 			-- reset write pointer to 00
 			elsif logic_state_current = logic_state_00 then
-				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+				if logic_i2c_start = '0' and (i2c_write_finished = '1' or i2c_read_finished = '1') then
 				-- logic_i2c_start check to ensure that the logic_i2c_start code has run and reset write_finished
-					led7 <= '0';
+					logic_i2c_rw <= logic_i2c_write;
 					logic_i2c_start <= '1';
 					i2c_write_bits_size <= 2*8 -1;
 					i2c_write_bits <= (i2c_write_bits_maxsize downto 2*8 => '0') & x"0000";
@@ -475,20 +535,20 @@ begin
 				end if;
 			
 			-- special readout logic
-			elsif logic_state_current = logic_state_readout then
-				if i2c_write_finished = '1' then
-					if logic_wait_counter = 60*4 then
-						led7 <= '0';
-						logic_i2c_start <= '1';
-						logic_i2c_rw <= logic_i2c_read;
-						logic_wait_counter <= 60*4 + 1;
-					elsif logic_wait_counter = 60*4 + 1 then
-						logic_i2c_start <= '0';
-						logic_state_current <= logic_state_deadend;
-					else
-						logic_wait_counter <= logic_wait_counter + 1;
-					end if;
-				end if;
+			--elsif logic_state_current = logic_state_readout then
+			--	if i2c_write_finished = '1' then
+			--		if logic_wait_counter = 60*4 then
+			--			led7 <= '0';
+			--			logic_i2c_start <= '1';
+			--			logic_i2c_rw <= logic_i2c_read;
+			--			logic_wait_counter <= 60*4 + 1;
+			--		elsif logic_wait_counter = 60*4 + 1 then
+			--			logic_i2c_start <= '0';
+			--			logic_state_current <= logic_state_deadend;
+			--		else
+			--			logic_wait_counter <= logic_wait_counter + 1;
+			--		end if;
+			--	end if;
 			end if;
 		end if;
 	
@@ -498,7 +558,8 @@ begin
 		if rst = '1' then
 			scl <= '0';
 			scl_counter <= 0;
-		elsif falling_edge(slowclk) then
+		else
+		--elsif falling_edge(slowclk) then
 			if scl_counter = 0 then
 				scl <= '1';
 			elsif scl_counter = 2 then
@@ -528,9 +589,11 @@ begin
 			i2c_write_finished <= '0';
 			i2c_receive_ack_counter <= 0;
 			i2c_stop_counter <= 0;
-			
-		elsif falling_edge(slowclk) then
+		
+		else
+		--elsif falling_edge(slowclk) then
 			if logic_i2c_start = '1' then
+				led2 <= '1';
 				i2c_state_next <= i2c_state_start;
 				i2c_read_finished <= '0';
 				i2c_write_finished <= '0';
@@ -620,7 +683,6 @@ begin
 				
 			elsif i2c_state_current = i2c_state_recieve_byte then
 				if scl_counter = 1 then
-					led2 <= '1';
 					i2c_read_bits(i2c_read_counter) <= sda;
 					if i2c_read_counter = 0 then
 						i2c_state_current <= i2c_state_send_nack;	
@@ -663,7 +725,8 @@ begin
 			readout_led_counter <= 0;
 			readout_led_counter_blink <= '0';
 			readout_led_counter_pos <= 7;
-		elsif falling_edge(slowclk) then
+		else
+		--elsif falling_edge(slowclk) then
 			if i2c_read_finished = '1' and readout_finished = '0' then
 				if readout_led_counter >= 200000*4 then
 					readout_led_counter <= 0;
@@ -687,6 +750,7 @@ begin
 				end if;
 			end if;
 		end if;
+	end if;
 		
 		
 		
