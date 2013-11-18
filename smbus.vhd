@@ -32,7 +32,7 @@ use IEEE.STD_LOGIC_TEXTIO.all;
 
 entity smbus is
     Port ( rst : in STD_LOGIC;
-			  clk : in  STD_LOGIC;
+			  slowclk : in  STD_LOGIC;
            scl : out  STD_LOGIC;
            sda : inout  STD_LOGIC;
 			  resetL : out STD_LOGIC;
@@ -43,12 +43,7 @@ end smbus;
 
 architecture Behavioral of smbus is
 
-signal slowclk: std_logic;
-signal clk_counter : integer range 0 to 50000 := 0;
-
 signal scl_counter : integer range 0 to 50000 := 0;
-constant CLKSLOWCLK_RATIO : integer := 250;
---constant CLKSLOWCLK_RATIO : integer := 63;
 
 type i2c_state_type is (i2c_state_idle, i2c_state_start, i2c_state_stop, i2c_state_send_slave_address,
    i2c_state_send_rw_read, i2c_state_send_rw_write, i2c_state_receive_ack, i2c_state_recieve_byte, i2c_state_send_byte, i2c_state_send_nack);
@@ -106,26 +101,6 @@ constant LOGIC_WAIT_1MS : integer := 400;
 signal logic_wait_counter : integer range 0 to 1000000 := 0;
 
 begin
-					
-	slowclk_generation: process(rst, clk)
-	begin
-		if rst = '1' then
-			clk_counter <= 0;
-			slowclk <= '0';
-		elsif rising_edge(clk) then
-			if clk_counter < CLKSLOWCLK_RATIO then
-				slowclk <= '0';
-			else
-				slowclk <= '1';
-			end if;
-			
-			if clk_counter >= (CLKSLOWCLK_RATIO*2) then
-				clk_counter <= 0;
-			else
-				clk_counter <= clk_counter + 1;
-			end if;
-		end if;
-	end process;
 	
 	i2c_generation: process(rst, slowclk)
 	begin
