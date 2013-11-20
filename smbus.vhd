@@ -58,7 +58,7 @@ signal i2c_slaveaddress_bits : std_logic_vector(6 downto 0);
 
 signal i2c_receive_ack_counter : integer range 0 to 1;
 
-constant i2c_write_bits_maxsize : integer := 56-1;
+constant i2c_write_bits_maxsize : integer := 40-1;
 signal i2c_write_bits_size : integer range 0 to i2c_write_bits_maxsize;
 signal i2c_write_bits : std_logic_vector(i2c_write_bits_maxsize downto 0);
 signal i2c_write_counter : integer range 0 to i2c_write_bits_maxsize;
@@ -77,7 +77,7 @@ logic_state_4,logic_state_5,
 logic_state_6a,logic_state_6b,
 logic_state_7a, logic_state_7b, logic_state_7c, logic_state_7d, logic_state_7e,
 logic_state_8a, logic_state_8b,
-logic_state_9a, logic_state_9aa, logic_state_9b,
+logic_state_9a, logic_state_9aa, logic_state_9aaa, logic_state_9b,
 logic_state_10,
 logic_state_11a, logic_state_11b, logic_state_11c, logic_state_11d, logic_state_11e, logic_state_11f,
 logic_state_11g, logic_state_11h, logic_state_11i, logic_state_11j, logic_state_11k, logic_state_11l, 
@@ -209,16 +209,22 @@ begin
 			-- step 9
 			elsif logic_state_current = logic_state_9a then
 				logic_i2c_start <= '1';
-				i2c_write_bits_size <= 7*8 -1;
-				i2c_write_bits <= (i2c_write_bits_maxsize downto 7*8 => '0') & x"22bf02" & (i2c_read_bits and x"03")
-					& x"bf02" & (i2c_read_bits and x"03");
+				i2c_write_bits_size <= 5*8 -1;
+				i2c_write_bits <= (i2c_write_bits_maxsize downto 5*8 => '0') & x"22bf02" & (i2c_read_bits and x"03")
+					& x"bf";
 				logic_state_current <= logic_state_9aa;
 
 			elsif logic_state_current = logic_state_9aa then
 				if logic_i2c_start = '0' and i2c_write_finished = '1' then
 			    	logic_i2c_start <= '1';
-			    	i2c_write_bits_size <= 6*8 -1;
-		    		i2c_write_bits <= (i2c_write_bits_maxsize downto 6*8 => '0') & x"bf02" & (i2c_read_bits and x"03") & x"bf02" & (i2c_read_bits and x"03");
+		    		i2c_write_bits <= (i2c_write_bits_maxsize downto 5*8 => '0') & x"2602" & (i2c_read_bits and x"03") & x"bf02";
+		    		logic_state_current <= logic_state_9aaa;
+                end if;
+
+			elsif logic_state_current = logic_state_9aaa then
+				if logic_i2c_start = '0' and i2c_write_finished = '1' then
+			    	logic_i2c_start <= '1';
+		    		i2c_write_bits <= (i2c_write_bits_maxsize downto 5*8 => '0') & x"2a" & (i2c_read_bits and x"03") & x"bf02" & (i2c_read_bits and x"03");
 		    		logic_state_current <= logic_state_9b;
                 end if;
 			
