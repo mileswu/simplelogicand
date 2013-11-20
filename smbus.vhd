@@ -43,19 +43,20 @@ end smbus;
 
 architecture Behavioral of smbus is
 
-signal scl_counter : integer range 0 to 50000 := 0;
+signal scl_counter : integer range 0 to 3 := 0;
 
 type i2c_state_type is (i2c_state_idle, i2c_state_start, i2c_state_stop, i2c_state_send_slave_address,
    i2c_state_send_rw_read, i2c_state_send_rw_write, i2c_state_receive_ack, i2c_state_recieve_byte, i2c_state_send_byte, i2c_state_send_nack);
 signal i2c_state_current : i2c_state_type;
 signal i2c_state_next : i2c_state_type;
 
-signal i2c_idle_counter : integer range 0 to 50000;
+constant i2c_idle_counter_max : integer := 5;
+signal i2c_idle_counter : integer range 0 to i2c_idle_counter_max;
 
-signal i2c_slaveaddress_counter : integer range 0 to 10;
+signal i2c_slaveaddress_counter : integer range 0 to 6;
 signal i2c_slaveaddress_bits : std_logic_vector(6 downto 0);
 
-signal i2c_receive_ack_counter : integer range 0 to 10;
+signal i2c_receive_ack_counter : integer range 0 to 1;
 
 constant i2c_write_bits_maxsize : integer := 120;
 signal i2c_write_bits_size : integer range 0 to i2c_write_bits_maxsize;
@@ -64,10 +65,10 @@ signal i2c_write_counter : integer range 0 to i2c_write_bits_maxsize;
 signal i2c_write_finished : std_logic;
 
 signal i2c_read_bits : std_logic_vector(7 downto 0);
-signal i2c_read_counter : integer range 0 to 10;
+signal i2c_read_counter : integer range 0 to 7;
 signal i2c_read_finished : std_logic;
 
-signal i2c_stop_counter : integer range 0 to 10;
+signal i2c_stop_counter : integer range 0 to 1;
 
 signal readout_finished : std_logic;
 
@@ -89,7 +90,7 @@ logic_state_readout, logic_state_deadend
 );
 signal logic_state_current : logic_state_type;
 signal logic_state_next : logic_state_type;
-signal logic_wait_ms : integer range 0 to 1000;
+signal logic_wait_ms : integer range 0 to 200;
 
 signal logic_i2c_start : std_logic;
 type logic_i2c_rw_type is (logic_i2c_read, logic_i2c_write);
@@ -98,7 +99,7 @@ signal logic_i2c_rw : logic_i2c_rw_type;
 constant LOGIC_WAIT_1MS : integer := 400;
 --constant LOGIC_WAIT_1MS : integer := 400*4;
 --constant LOGIC_WAIT_1MS : integer := 2;
-signal logic_wait_counter : integer range 0 to 1000000 := 0;
+signal logic_wait_counter : integer range 0 to 80000 := 0;
 
 begin
 	
@@ -515,7 +516,7 @@ begin
 			if i2c_state_current = i2c_state_idle then
 				if scl_counter = 3 then -- middle of low scl
 					sda <= '1';
-					if i2c_idle_counter >= 5 then --idle for 5 cycles
+					if i2c_idle_counter >= i2c_idle_counter_max then --idle for 5 cycles
 						i2c_idle_counter <= 0;
 						i2c_state_current <= i2c_state_next;
 					else
