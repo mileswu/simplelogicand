@@ -58,7 +58,7 @@ signal i2c_slaveaddress_bits : std_logic_vector(6 downto 0);
 
 signal i2c_receive_ack_counter : integer range 0 to 1;
 
-constant i2c_write_bits_maxsize : integer := 120;
+constant i2c_write_bits_maxsize : integer := 104;
 signal i2c_write_bits_size : integer range 0 to i2c_write_bits_maxsize;
 signal i2c_write_bits : std_logic_vector(i2c_write_bits_maxsize downto 0);
 signal i2c_write_counter : integer range 0 to i2c_write_bits_maxsize;
